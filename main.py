@@ -1,9 +1,9 @@
-import streamlit as st
+
 import streamlit as st
 import os
+import torch
 from demucs.pretrained import get_model
 from demucs.apply import apply_model
-from demucs.audio import AudioFile, save_audio
 import numpy as np
 import tempfile
 import zipfile
@@ -60,21 +60,16 @@ def prevent_clip(wav, mode='rescale'):
 
 
 def process_audio(audio_file, model, selected_stems, output_dir, progress_callback):
-    temp_path = os.path.join(output_dir, audio_file.name)
-    with open(temp_path, "wb") as f:
-        f.write(audio_file.getbuffer())
+    # Read the audio file directly from the UploadedFile object
+    audio_data, sample_rate = sf.read(io.BytesIO(audio_file.getvalue()))
 
-    progress_callback(0.1)  # 10% progress after writing file
+    progress_callback(0.1)  # 10% progress after reading file
 
-    # Read the audio file and get its sample rate
-    with sf.SoundFile(temp_path) as sound_file:
-        sample_rate = sound_file.samplerate
+    # Convert to torch tensor
+    audio = torch.tensor(audio_data.T, dtype=torch.float32)
+    audio = audio.unsqueeze(0)  # Add batch dimension
 
-    # Read audio using the detected sample rate
-    audio = AudioFile(temp_path).read(streams=0, samplerate=sample_rate, channels=2)
-    audio = audio.unsqueeze(0)
-
-    progress_callback(0.2)  # 20% progress after reading audio
+    progress_callback(0.2)  # 20% progress after converting to tensor
 
     # Apply the model
     sources = apply_model(model, audio, split=True, device="cpu")
@@ -88,11 +83,10 @@ def process_audio(audio_file, model, selected_stems, output_dir, progress_callba
     for i, (name, source) in enumerate(zip(stem_names, sources)):
         if name in selected_stems:
             source = source.T
-            source = prevent_clip(source)  # Apply clipping prevention
             stem_path = os.path.join(output_dir, f"{audio_file.name}_{name}.wav")
-            sf.write(stem_path, source, sample_rate)  # Use soundfile to write audio
+            sf.write(stem_path, source, sample_rate)
             stem_files.append((name, stem_path))
-        progress_callback(0.5 + 0.5 * (i + 1) / len(stem_names))  # Progress from 50% to 100% as stems are processed
+        progress_callback(0.5 + 0.5 * (i + 1) / len(stem_names))
 
     return stem_files
 
@@ -122,13 +116,11 @@ def main():
             progress_bar = st.progress(0)
             status_text = st.empty()
 
-            # Create a temporary directory to store all processed files
             with tempfile.TemporaryDirectory() as tmpdirname:
                 all_stems = []
                 for i, audio_file in enumerate(uploaded_files):
                     status_text.text(f"Processing {audio_file.name}...")
 
-                    # Create a callback for updating progress
                     def update_progress(file_progress):
                         total_progress = (i + file_progress) / len(uploaded_files)
                         progress_bar.progress(total_progress)
