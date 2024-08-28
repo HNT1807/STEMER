@@ -1,6 +1,6 @@
 import streamlit as st
+import streamlit as st
 import os
-import torch
 from demucs.pretrained import get_model
 from demucs.apply import apply_model
 from demucs.audio import AudioFile, save_audio
@@ -39,21 +39,6 @@ st.markdown("""
 st.markdown("<h1 style='text-align: center;'>STEMER</h1>", unsafe_allow_html=True)
 st.markdown("<h3 style='text-align: center;'>Batch Audio Stem Separation</h3>", unsafe_allow_html=True)
 
-import streamlit as st
-import os
-import torch
-from demucs.pretrained import get_model
-from demucs.apply import apply_model
-from demucs.audio import AudioFile, save_audio
-import numpy as np
-import tempfile
-import zipfile
-import io
-import soundfile as sf
-import shutil
-
-
-# ... [previous code remains unchanged] ...
 
 def is_float_dtype(dtype):
     return np.issubdtype(dtype, np.floating)
@@ -122,8 +107,7 @@ def main():
     model = load_model()
 
     # File uploader
-    uploaded_files = st.file_uploader("Drop your audio files here", accept_multiple_files=True,
-                                      type=['mp3', 'wav', 'aif'])
+    uploaded_files = st.file_uploader(label="", accept_multiple_files=True, type=['mp3', 'wav', 'aif'])
 
     if uploaded_files:
         file_stem_selections = {}
