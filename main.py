@@ -80,11 +80,21 @@ def process_audio(audio_file, model, selected_stems, output_dir, progress_callba
     # Ensure correct ordering of stem names
     stem_names = model.sources
     stem_files = []
+    # Create a "no vocals" mix if requested
+    if "no vocals" in selected_stems:
+        no_vocals_mix = np.zeros_like(sources[0])
+        for i, name in enumerate(stem_names):
+            if name != "vocals":
+                no_vocals_mix += sources[i]
+
+        no_vocals_path = os.path.join(output_dir, f"{audio_file.name}_no vocals.wav")
+        sf.write(no_vocals_path, no_vocals_mix.T, sample_rate)
+        stem_files.append(("no vocals", no_vocals_path))
+
     for i, (name, source) in enumerate(zip(stem_names, sources)):
         if name in selected_stems:
-            source = source.T
             stem_path = os.path.join(output_dir, f"{audio_file.name}_{name}.wav")
-            sf.write(stem_path, source, sample_rate)
+            sf.write(stem_path, source.T, sample_rate)
             stem_files.append((name, stem_path))
         progress_callback(0.5 + 0.5 * (i + 1) / len(stem_names))
 
@@ -107,7 +117,8 @@ def main():
         file_stem_selections = {}
         for audio_file in uploaded_files:
             with st.expander(f"File: {audio_file.name}", expanded=False):
-                stem_options = ["vocals", "drums", "bass", "other"]
+                stem_options = ["vocals", "drums", "bass", "other", "no vocals"]
+
                 selected_stems = st.multiselect(f"Select the stems you want", stem_options,
                                                 default=stem_options, key=audio_file.name)
                 file_stem_selections[audio_file.name] = selected_stems
